@@ -1,85 +1,199 @@
-# NovaPlayer 🚀
+<p align="center">
+  <img src="docs/assets/banner.png" alt="NovaPlayer Banner" width="100%" />
+</p>
 
-A modern, high-performance macOS video player with **YouTube-style ergonomics**, built natively with **Swift 6, SwiftUI, and AVFoundation**. Designed as a seamless, feature-packed alternative to QuickTime Player.
-
----
-
-## ✨ Features
-
-* **⚡ Granular Playback Speed:** Fine-tune playback speed with a step of **`0.05×`** (e.g. `1.05×`, `1.10×`, `1.15×`, `1.20×`), with automatic pitch preservation so voices remain natural.
-* **⏩ 5-Second Seeking:** Instantly skip forward or backward by 5 seconds with hotkeys or on-screen controls, accompanied by transient YouTube-style HUD notices (`+5s` / `-5s`).
-* **🎞️ Timeline Hover Frame Previews:** Hover your cursor anywhere along the scrubber bar to see a floating preview card with the exact corresponding video frame and timestamp.
-* **🎛️ Fully Customizable:** Configure skip intervals (`3s`, `5s`, `10s`, `15s`, `30s`) and speed steps (`0.01×`, `0.02×`, `0.05×`, `0.10×`) in the built-in Preferences panel.
-* **🎬 Floating Borderless Cinema Window:** Minimalist floating window where controls smoothly fade out during playback and reappear on mouse movement. You can drag the window from anywhere on the canvas.
-* **🎯 Native Hardware Acceleration:** Uses `AVPlayer` with Metal-accelerated zero-copy video decoding for smooth 4K/60fps playback and minimal battery drain.
-* **📁 Drag & Drop Support:** Drop any `.mp4`, `.mov`, or `.m4v` video directly into the player window.
+<p align="center">
+  <a href="https://github.com/Beccaceci/NovaPlayer/releases"><img src="https://img.shields.io/github/v/release/Beccaceci/NovaPlayer?style=for-the-badge&color=blue&label=Release" alt="Release" /></a>
+  <a href="#"><img src="https://img.shields.io/badge/Platform-macOS%2014%2B-black?style=for-the-badge&logo=apple" alt="macOS" /></a>
+  <a href="#"><img src="https://img.shields.io/badge/Swift-6.0-orange?style=for-the-badge&logo=swift" alt="Swift" /></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-green?style=for-the-badge" alt="License" /></a>
+</p>
 
 ---
 
-## ⌨️ Keyboard Shortcuts (YouTube Muscle Memory)
+## 💡 About NovaPlayer
 
-| Shortcut | Action |
-| :--- | :--- |
-| `Space` or `K` | Toggle Play / Pause |
-| `←` or `J` | Skip Backward by configured interval (default 5s) |
-| `→` or `L` | Skip Forward by configured interval (default 5s) |
-| `[` | Decrease Speed by configured step (default `0.05×`) |
-| `]` | Increase Speed by configured step (default `0.05×`) |
-| `↑` / `↓` | Increase / Decrease Volume by 5% |
-| `M` | Toggle Mute |
-| `F` | Toggle Fullscreen (or double-click video canvas) |
-| `0` – `9` | Jump to 0% – 90% of total video duration |
-| `Cmd + O` | Open Video File Dialog |
+**NovaPlayer** is a modern, ultra-lightweight, high-performance native macOS media player built with **Swift 6, SwiftUI, and AVFoundation**.
+
+QuickTime Player has remained virtually unchanged for over a decade: it lacks fine-grained playback speed controls, restricts frame scrubbing previews, and offers rigid, awkward seek intervals. **NovaPlayer brings the modern ergonomics of YouTube directly to native desktop video playback on Mac**, with Metal zero-copy hardware acceleration, minimal CPU consumption, and zero battery drain.
 
 ---
 
-## 🏗️ Project Structure
+## ⚡ Key Highlights
 
-```
-nova-player/
-├── Package.swift                    # Swift 6 Package Manifest
-├── Sources/
-│   ├── NovaPlayerKit/               # Core Application Framework
-│   │   ├── Model/
-│   │   │   ├── PlayerState.swift    # Observable state (time, rate, hover, volume)
-│   │   │   └── AppSettings.swift    # Persisted preferences (skip interval, speed step)
-│   │   ├── Services/
-│   │   │   ├── PlaybackEngine.swift # AVPlayer lifecycle, time observing, pitch correction
-│   │   │   └── ThumbnailService.swift # AVAssetImageGenerator + LRU frame caching
-│   │   ├── Views/
-│   │   │   ├── NovaPlayerRootView.swift # Root container & open file handler
-│   │   │   ├── VideoSurfaceView.swift   # AppKit NSView wrapping AVPlayerLayer & drag/drop
-│   │   │   ├── ControlsOverlayView.swift# Cinema overlay with top/bottom bars & HUD
-│   │   │   ├── TimelineBarView.swift    # Scrubber with continuous hover tracking
-│   │   │   ├── HoverThumbnailCard.swift # Floating frame preview tooltip
-│   │   │   ├── SpeedControlPopover.swift# Granular speed stepper & presets
-│   │   │   ├── SettingsView.swift       # Preferences popover
-│   │   │   └── HUDIndicatorView.swift   # Transient center notifications
-│   │   └── Controllers/
-│   │       └── KeyCommandHandler.swift  # YouTube hotkey interceptor
-│   └── NovaPlayer/
-│       └── main.swift               # Application entrypoint & borderless window
-├── Resources/
-│   └── Info.plist                   # Bundle metadata and file associations
-├── Tests/
-│   └── NovaPlayerTests/             # Unit tests for speed math, formatting, state
-└── scripts/
-    └── build_app.sh                 # Builds and packages NovaPlayer.app
-```
+* **🎛️ 0.05× Granular Playback Speed:** Fine-tune playback rate in increments of `0.05×` (e.g., `0.95×`, `1.00×`, `1.05×`, `1.10×`, `1.15×`) up to `4.00×`. Features built-in `timeDomain` pitch preservation so speech sounds completely natural without distortion.
+* **🎞️ Timeline Frame Hover Preview:** Glide your cursor over the timeline scrubber to view a floating preview card showing the exact corresponding video frame and timestamp in real time.
+* **⏩ 5-Second Seeking (YouTube-Style):** Skip forward or backward by 5 seconds with hotkeys (`←` / `→` or `J` / `L`), accompanied by transient animated center HUD notices (`+5s` / `-5s`).
+* **💬 Subtitle Translation & Real-Time Spoken Voice-Over Dub:**
+  * Detects embedded subtitles and automatically loads companion `.srt` / `.vtt` files.
+  * Translates subtitles on the fly into **Italian**, **Spanish**, **French**, **German**, **English**, **Japanese**, **Chinese**, and **Portuguese**.
+  * **Spoken Voice-Over:** Uses macOS's native `AVSpeechSynthesizer` to speak translated lines in real-time while automatically ducking the original soundtrack to 20% volume — *with zero heavy AI models required*.
+* **🎬 Borderless Cinema Window & Dedicated Landing Page:**
+  * Clean, distraction-free welcome screen with an interactive drag-and-drop zone.
+  * Floating cinema player that smoothly fades out controls during playback and restores full macOS fullscreen with multi-monitor support.
+* **⚡ Native Apple Silicon Acceleration:** Powered by `AVPlayer` and Metal hardware decoding for butter-smooth 4K 60fps playback.
 
 ---
 
-## 🚀 Building & Running
+## 🚀 Quick Install (One-Click)
 
-### Run directly with Swift:
+### Option 1: Terminal One-Liner (Fastest)
+
+Run this single command in your Terminal to automatically download, install to `/Applications`, and register NovaPlayer:
+
 ```bash
-cd nova-player
-swift run NovaPlayer [optional_path_to_video.mp4]
+curl -fsSL https://raw.githubusercontent.com/Beccaceci/NovaPlayer/main/install.sh | bash
 ```
 
-### Build the macOS `.app` bundle:
+---
+
+### Option 2: Download `.dmg` (Drag-and-Drop)
+
+1. Download the latest **[NovaPlayer.dmg](https://github.com/Beccaceci/NovaPlayer/releases/latest)** from the Releases page.
+2. Open the `.dmg` file.
+3. Drag **NovaPlayer** into your **Applications** folder.
+4. Launch it anytime via **Spotlight** (`Cmd + Space` -> `NovaPlayer`).
+
+---
+
+### Option 3: Build from Source
+
+Requires macOS 14+ and Xcode Command Line Tools (`xcode-select --install`):
+
 ```bash
-cd nova-player
+git clone https://github.com/Beccaceci/NovaPlayer.git
+cd NovaPlayer
 ./scripts/build_app.sh
 open build/NovaPlayer.app
 ```
+
+---
+
+## 📸 Feature Walkthrough
+
+### 1. Dedicated Drag & Drop Landing Page
+When launched without a video, NovaPlayer greets you with an intuitive, clean drag-and-drop landing area instead of an awkward blank player. Drag any `.mp4`, `.mov`, or `.m4v` video to immediately start playback.
+
+<p align="center">
+  <img src="docs/assets/feature_welcome.png" alt="Dedicated Landing Page" width="90%" />
+</p>
+
+---
+
+### 2. Fine-Grained 0.05× Playback Speed Dial
+Adjust your playback speed with granular precision. Use `[` and `]` hotkeys on the fly, or click the speed badge to open the quick stepper, fluid slider, and preset chips (`0.75×`, `1.0×`, `1.15×`, `1.25×`, `1.5×`, `2.0×`).
+
+<p align="center">
+  <img src="docs/assets/feature_speed.png" alt="0.05x Speed Control" width="90%" />
+</p>
+
+---
+
+### 3. Timeline Scrubber with Live Hover Frame Previews
+Move your mouse across the timeline without clicking to preview any scene. An asynchronous, debounced image generator paired with an LRU in-memory cache renders crisp 16:9 preview frames with zero stutter.
+
+<p align="center">
+  <img src="docs/assets/feature_hover.png" alt="Timeline Frame Previews" width="90%" />
+</p>
+
+---
+
+### 4. 5-Second Seeking with Animated HUD Feedback
+Never lose your place. Pressing `←` or `→` (or `J` / `L`) skips forward or backward by 5 seconds with an instant, YouTube-style animated badge in the center of the canvas.
+
+<p align="center">
+  <img src="docs/assets/feature_skip.png" alt="5-Second Skipping HUD" width="90%" />
+</p>
+
+---
+
+### 5. Subtitles & Real-Time Spoken Voice-Over Dubbing
+Select from embedded audio and subtitle tracks or load external `.srt`/`.vtt` files. Turn on **Subtitle Translation** to translate text on the fly, and toggle **Spoken Voice-Over Dub** to have macOS vocalize the translated sentences in real-time while ducking the original audio.
+
+<p align="center">
+  <img src="docs/assets/feature_subtitles.png" alt="Subtitles and Voice-Over Dubbing" width="90%" />
+</p>
+
+---
+
+### 6. Customizable Preferences
+Click the gear icon (`⚙️`) in the top bar to tailor NovaPlayer to your habits: adjust your preferred skip interval (`3s`, `5s`, `10s`, `15s`, `30s`), speed step (`0.01×`, `0.02×`, `0.05×`, `0.10×`), or auto-hide delay.
+
+<p align="center">
+  <img src="docs/assets/feature_settings.png" alt="Customizable Preferences" width="90%" />
+</p>
+
+---
+
+## ⌨️ Keyboard Shortcuts Reference
+
+NovaPlayer adopts standard YouTube hotkeys so you don't have to relearn any muscle memory:
+
+| Key | Action |
+| :--- | :--- |
+| <kbd>Space</kbd> or <kbd>K</kbd> | Toggle Play / Pause |
+| <kbd>←</kbd> or <kbd>J</kbd> | Skip Backward (default 5s) |
+| <kbd>→</kbd> or <kbd>L</kbd> | Skip Forward (default 5s) |
+| <kbd>[</kbd> | Decrease Playback Speed by 0.05× |
+| <kbd>]</kbd> | Increase Playback Speed by 0.05× |
+| <kbd>↑</kbd> / <kbd>↓</kbd> | Volume Up / Down (5%) |
+| <kbd>M</kbd> | Toggle Mute |
+| <kbd>F</kbd> | Toggle Fullscreen (or double-click video canvas) |
+| <kbd>0</kbd> – <kbd>9</kbd> | Jump to 0% – 90% of total video duration |
+| <kbd>Cmd</kbd> + <kbd>O</kbd> | Open Video File Dialog |
+| <kbd>Cmd</kbd> + <kbd>W</kbd> | Close Window |
+
+---
+
+## ⚙️ Setting NovaPlayer as Your Default `.mp4` Player
+
+1. In **Finder**, locate any `.mp4` video file.
+2. **Right-click** (or Control-click) and select **Get Info** (<kbd>Cmd</kbd> + <kbd>I</kbd>).
+3. Expand the **Open with:** section.
+4. Select **NovaPlayer** from the dropdown menu.
+5. Click **Change All…** and confirm.
+
+Double-clicking any `.mp4` file will now launch directly in NovaPlayer!
+
+---
+
+## 🏗️ Architecture & Technology Stack
+
+NovaPlayer is modularized into a clean MVVM + Service layer:
+
+```
+NovaPlayer/
+├── Package.swift                    # Swift Package Manager Manifest
+├── Sources/
+│   ├── NovaPlayerKit/               # Core Framework Library
+│   │   ├── Model/                   # PlayerState, AppSettings, SubtitleCue
+│   │   ├── Services/                # PlaybackEngine, ThumbnailService, SubtitleManager, AudioVoiceoverEngine
+│   │   ├── Views/                   # WelcomeLandingView, VideoSurfaceView, ControlsOverlayView, TimelineBarView
+│   │   └── Controllers/             # KeyCommandHandler
+│   └── NovaPlayer/
+│       └── main.swift               # Application Entrypoint & Window Configuration
+├── Tests/
+│   └── NovaPlayerTests/             # 9 Automated Test Suites (100% pass)
+└── scripts/
+    ├── build_app.sh                 # Release bundle builder
+    ├── package_dmg.sh               # Distributable DMG packager
+    └── generate_docs_assets.py      # Retina documentation assets generator
+```
+
+---
+
+## 🗺️ Roadmap & Cross-Platform Support
+
+* [x] Native macOS AppKit + SwiftUI + AVFoundation engine
+* [x] 0.05× Speed Granularity with pitch correction
+* [x] 5-Second skipping with HUD animations
+* [x] Live timeline hover frame thumbnails
+* [x] Subtitle translation & native speech voice-over dubbing
+* [x] Dedicated Drag & Drop Welcome page
+* [ ] **Cross-Platform Release (Windows & Linux):** Multi-platform desktop port powered by **Tauri v2 + Rust + libmpv**.
+
+---
+
+## 📄 License
+
+NovaPlayer is released under the **[MIT License](LICENSE)**. Contributions, bug reports, and feature requests are warmly welcomed!
