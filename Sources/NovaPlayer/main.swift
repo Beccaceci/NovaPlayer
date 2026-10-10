@@ -5,7 +5,8 @@ import NovaPlayerKit
 @main
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var window: NSWindow?
-    private var rootView: NovaPlayerRootView?
+    private var pendingURL: URL?
+    private var isReady: Bool = false
     
     static func main() {
         let app = NSApplication.shared
@@ -19,18 +20,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         setupMainMenu()
         setupWindow()
         
-        // Check if video URL passed as CLI argument
-        if CommandLine.arguments.count > 1 {
+        isReady = true
+        
+        // Priority 1: Pending URL opened via Finder / "Open With" during launch
+        if let pending = pendingURL {
+            openMediaFile(url: pending)
+            pendingURL = nil
+        }
+        // Priority 2: Check if video URL passed as CLI argument
+        else if CommandLine.arguments.count > 1 {
             let path = CommandLine.arguments[1]
             let url = URL(fileURLWithPath: path)
-            rootView?.openFile(url: url)
+            openMediaFile(url: url)
         }
     }
     
     private func setupWindow() {
         let contentRect = NSRect(x: 0, y: 0, width: 960, height: 540)
         
-        // FullSizeContentView window supporting native macOS fullscreen
         let window = NSWindow(
             contentRect: contentRect,
             styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
@@ -54,9 +61,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         window.minSize = NSSize(width: 480, height: 270)
         window.center()
         
-        let root = NovaPlayerRootView()
-        self.rootView = root
-        
+        let root = NovaPlayerRootView(engine: PlaybackEngine.shared, state: PlayerState.shared)
         let hostingView = NSHostingView(rootView: root)
         hostingView.autoresizingMask = [.width, .height]
         window.contentView = hostingView
@@ -70,9 +75,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func application(_ sender: NSApplication, openFiles filenames: [String]) {
         if let first = filenames.first {
             let url = URL(fileURLWithPath: first)
-            rootView?.openFile(url: url)
+            if isReady {
+                DispatchQueue.main.async { [weak self] in
+                    self?.openMediaFile(url: url)
+                }
+            } else {
+                pendingURL = url
+            }
         }
         sender.reply(toOpenOrPrint: .success)
+    }
+    
+    private func openMediaFile(url: URL) {
+        PlaybackEngine.shared.loadVideo(url: url)
+        ThumbnailService().setAsset(url: url)
     }
     
     private func setupMainMenu() {

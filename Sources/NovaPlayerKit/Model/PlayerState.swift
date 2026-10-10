@@ -24,6 +24,8 @@ public struct HoverPreviewState: Equatable {
 }
 
 public final class PlayerState: ObservableObject {
+    public static let shared = PlayerState()
+    
     @Published public var currentURL: URL? = nil
     @Published public var videoTitle: String = "No Video Loaded"
     

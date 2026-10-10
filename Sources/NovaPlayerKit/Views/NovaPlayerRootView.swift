@@ -7,24 +7,18 @@ final class PlayerCoordinator: ObservableObject {
 }
 
 public struct NovaPlayerRootView: View {
-    @StateObject private var state = PlayerState()
-    @StateObject private var settings = AppSettings.shared
+    @ObservedObject private var state: PlayerState
+    @ObservedObject private var settings = AppSettings.shared
     @StateObject private var coordinator = PlayerCoordinator()
     @ObservedObject private var subtitleManager = SubtitleManager.shared
     
     private let engine: PlaybackEngine
     private let thumbnailService: ThumbnailService
     
-    public init() {
-        let state = PlayerState()
-        let settings = AppSettings.shared
-        let engine = PlaybackEngine(state: state, settings: settings)
+    public init(engine: PlaybackEngine = .shared, state: PlayerState = .shared) {
         let thumbnail = ThumbnailService()
-        
         AudioVoiceoverEngine.shared.attach(player: engine.player)
-        
-        _state = StateObject(wrappedValue: state)
-        _settings = StateObject(wrappedValue: settings)
+        self.state = state
         self.engine = engine
         self.thumbnailService = thumbnail
     }

@@ -4,6 +4,8 @@ import AppKit
 import Combine
 
 public final class PlaybackEngine: ObservableObject {
+    public static let shared = PlaybackEngine(state: PlayerState.shared)
+    
     public let player = AVPlayer()
     public let state: PlayerState
     public let settings: AppSettings
