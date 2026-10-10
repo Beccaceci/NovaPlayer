@@ -3,3 +3,6 @@
 build/
 *.mp4
 *.srt
+cross-platform/target
+cross-platform/node_modules
+cross-platform/dist
