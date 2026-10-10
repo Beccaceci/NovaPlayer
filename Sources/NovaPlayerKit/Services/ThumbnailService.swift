@@ -3,35 +3,36 @@ import AVFoundation
 import AppKit
 
 public final class ThumbnailService {
+    public static let shared = ThumbnailService()
+    
     private var imageGenerator: AVAssetImageGenerator?
     private let cache = NSCache<NSNumber, NSImage>()
-    private var currentTask: Task<Void, Never>?
     private var activeAssetURL: URL?
+    private var pendingRequestTime: Double?
     
     public init() {
-        cache.countLimit = 250 // Holds ~250 preview frames in memory
+        cache.countLimit = 300 // Holds ~300 preview frames in memory
     }
     
     public func setAsset(url: URL) {
         guard url != activeAssetURL else { return }
         activeAssetURL = url
         cache.removeAllObjects()
-        currentTask?.cancel()
         
         let asset = AVURLAsset(url: url)
         let generator = AVAssetImageGenerator(asset: asset)
         generator.appliesPreferredTrackTransform = true
-        // 16:9 thumbnail preview size
-        generator.maximumSize = CGSize(width: 240, height: 135)
-        generator.requestedTimeToleranceBefore = CMTime(seconds: 0.5, preferredTimescale: 600)
-        generator.requestedTimeToleranceAfter = CMTime(seconds: 0.5, preferredTimescale: 600)
+        // 16:9 thumbnail preview size (Retina @2x friendly)
+        generator.maximumSize = CGSize(width: 384, height: 216)
+        generator.requestedTimeToleranceBefore = CMTime(seconds: 1.0, preferredTimescale: 600)
+        generator.requestedTimeToleranceAfter = CMTime(seconds: 1.0, preferredTimescale: 600)
         self.imageGenerator = generator
     }
     
     public func requestThumbnail(at seconds: Double, completion: @escaping (NSImage?) -> Void) {
         let roundedKey = NSNumber(value: Int(seconds.rounded()))
         
-        // Check cache first for instantaneous response
+        // 1. Instant Cache Hit
         if let cachedImage = cache.object(forKey: roundedKey) {
             completion(cachedImage)
             return
@@ -42,42 +43,30 @@ public final class ThumbnailService {
             return
         }
         
-        // Cancel previous pending generation so we don't lag behind rapid mouse scrubbing
-        currentTask?.cancel()
+        pendingRequestTime = seconds
+        let targetTime = seconds
+        let cmTime = CMTime(seconds: seconds, preferredTimescale: 600)
         
-        currentTask = Task {
-            // Small debounce to avoid queuing frames during rapid sweep
-            do {
-                try await Task.sleep(nanoseconds: 25_000_000) // 25ms
-            } catch {
-                return
-            }
+        // 2. Asynchronous generation without blocking the main thread
+        generator.generateCGImagesAsynchronously(forTimes: [NSValue(time: cmTime)]) { [weak self] _, cgImage, _, result, _ in
+            guard let self = self else { return }
             
-            if Task.isCancelled { return }
-            
-            let cmTime = CMTime(seconds: seconds, preferredTimescale: 600)
-            do {
-                let (cgImage, _) = try await generator.image(at: cmTime)
-                if Task.isCancelled { return }
-                
+            if result == .succeeded, let cgImage = cgImage {
                 let nsImage = NSImage(cgImage: cgImage, size: NSSize(width: cgImage.width, height: cgImage.height))
                 self.cache.setObject(nsImage, forKey: roundedKey)
                 
-                await MainActor.run {
+                DispatchQueue.main.async {
                     completion(nsImage)
                 }
-            } catch {
-                // If cancelled or failed, ignore
-                if !Task.isCancelled {
-                    await MainActor.run {
-                        completion(nil)
-                    }
+            } else if result == .failed {
+                DispatchQueue.main.async {
+                    completion(nil)
                 }
             }
         }
     }
     
     public func cancel() {
-        currentTask?.cancel()
+        imageGenerator?.cancelAllCGImageGeneration()
     }
 }

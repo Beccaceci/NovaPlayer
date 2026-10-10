@@ -16,7 +16,7 @@ public struct NovaPlayerRootView: View {
     private let thumbnailService: ThumbnailService
     
     public init(engine: PlaybackEngine = .shared, state: PlayerState = .shared) {
-        let thumbnail = ThumbnailService()
+        let thumbnail = ThumbnailService.shared
         AudioVoiceoverEngine.shared.attach(player: engine.player)
         self.state = state
         self.engine = engine

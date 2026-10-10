@@ -91,6 +91,7 @@ public final class PlaybackEngine: ObservableObject {
         self.state.duration = 0
         
         player.replaceCurrentItem(with: item)
+        ThumbnailService.shared.setAsset(url: url)
         SubtitleManager.shared.attach(player: player)
         SubtitleManager.shared.didLoadAsset(asset, videoURL: url)
         play()

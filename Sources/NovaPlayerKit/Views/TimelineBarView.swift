@@ -87,9 +87,11 @@ public struct TimelineBarView: View {
                         state.hoverPreview.isLoading = true
                         
                         thumbnailService.requestThumbnail(at: time) { image in
-                            if self.state.hoverPreview.isHovering && abs(self.state.hoverPreview.hoverTime - time) < 1.0 {
-                                self.state.hoverPreview.thumbnailImage = image
-                                self.state.hoverPreview.isLoading = false
+                            if self.state.hoverPreview.isHovering {
+                                if let image = image {
+                                    self.state.hoverPreview.thumbnailImage = image
+                                    self.state.hoverPreview.isLoading = false
+                                }
                             }
                         }
                     case .ended:

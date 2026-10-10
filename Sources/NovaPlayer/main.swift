@@ -88,7 +88,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     
     private func openMediaFile(url: URL) {
         PlaybackEngine.shared.loadVideo(url: url)
-        ThumbnailService().setAsset(url: url)
     }
     
     private func setupMainMenu() {
