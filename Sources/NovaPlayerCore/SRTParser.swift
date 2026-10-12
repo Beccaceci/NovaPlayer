@@ -4,7 +4,7 @@ public struct SRTParser {
     public static func parse(content: String) -> [SubtitleCue] {
         var cues: [SubtitleCue] = []
         let normalized = content.replacingOccurrences(of: "\r\n", with: "\n").replacingOccurrences(of: "\r", with: "\n")
-        let blocks = normalized.components(separatedBy: "\n\n")
+        let blocks = normalized.replacingOccurrences(of: "\n[ \t]+\n", with: "\n\n", options: .regularExpression).components(separatedBy: "\n\n")
         
         var nextId = 1
         for block in blocks {
@@ -56,11 +56,16 @@ public struct SRTParser {
             guard let h = Double(parts[0]),
                   let m = Double(parts[1]),
                   let s = Double(parts[2]) else { return nil }
-            return h * 3600 + m * 60 + s
+            guard h.isFinite, m.isFinite, s.isFinite, h >= 0, h.rounded() == h,
+                  m >= 0, m < 60, m.rounded() == m, s >= 0, s < 60 else { return nil }
+            let result = h * 3600 + m * 60 + s
+            return result.isFinite ? result : nil
         } else if parts.count == 2 {
             guard let m = Double(parts[0]),
                   let s = Double(parts[1]) else { return nil }
-            return m * 60 + s
+            guard m.isFinite, s.isFinite, m >= 0, m.rounded() == m, s >= 0, s < 60 else { return nil }
+            let result = m * 60 + s
+            return result.isFinite ? result : nil
         }
         return nil
     }

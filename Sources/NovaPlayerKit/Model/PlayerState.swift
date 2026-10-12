@@ -48,7 +48,7 @@ public final class PlayerState: ObservableObject {
     public init() {}
     
     public var progress: Double {
-        guard duration > 0 else { return 0 }
+        guard duration.isFinite, currentTime.isFinite, duration > 0 else { return 0 }
         return min(max(currentTime / duration, 0.0), 1.0)
     }
     
@@ -57,7 +57,7 @@ public final class PlayerState: ObservableObject {
     }
     
     public static func formatTime(_ seconds: Double) -> String {
-        guard !seconds.isNaN && !seconds.isInfinite && seconds >= 0 else {
+        guard !seconds.isNaN && !seconds.isInfinite && seconds >= 0 && seconds < Double(Int.max) else {
             return "0:00"
         }
         let totalSeconds = Int(seconds)
@@ -66,7 +66,7 @@ public final class PlayerState: ObservableObject {
         let h = totalSeconds / 3600
         
         if h > 0 {
-            return String(format: "%d:%02d:%02d", h, m, s)
+            return String(format: "%lld:%02lld:%02lld", h, m, s)
         } else {
             return String(format: "%d:%02d", m, s)
         }

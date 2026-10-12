@@ -15,12 +15,14 @@ public final class AppSettings: ObservableObject {
     
     @Published public var skipInterval: Double {
         didSet {
+            if !skipInterval.isFinite || skipInterval <= 0 || skipInterval > 3600 { skipInterval = 5.0 }
             defaults.set(skipInterval, forKey: Keys.skipInterval)
         }
     }
     
     @Published public var speedGranularity: Float {
         didSet {
+            if !speedGranularity.isFinite || speedGranularity <= 0 || speedGranularity > 1 { speedGranularity = 0.05 }
             defaults.set(speedGranularity, forKey: Keys.speedGranularity)
         }
     }
@@ -33,6 +35,7 @@ public final class AppSettings: ObservableObject {
     
     @Published public var autoHideDelay: Double {
         didSet {
+            if !autoHideDelay.isFinite || autoHideDelay <= 0 || autoHideDelay > 3600 { autoHideDelay = 2.5 }
             defaults.set(autoHideDelay, forKey: Keys.autoHideDelay)
         }
     }
@@ -41,10 +44,10 @@ public final class AppSettings: ObservableObject {
         self.defaults = defaults
         
         let storedSkip = defaults.double(forKey: Keys.skipInterval)
-        self.skipInterval = storedSkip > 0 ? storedSkip : 5.0
+        self.skipInterval = storedSkip.isFinite && storedSkip > 0 && storedSkip <= 3600 ? storedSkip : 5.0
         
         let storedGranularity = defaults.float(forKey: Keys.speedGranularity)
-        self.speedGranularity = storedGranularity > 0 ? storedGranularity : 0.05
+        self.speedGranularity = storedGranularity.isFinite && storedGranularity > 0 && storedGranularity <= 1 ? storedGranularity : 0.05
         
         if defaults.object(forKey: Keys.hoverPreviewEnabled) != nil {
             self.hoverPreviewEnabled = defaults.bool(forKey: Keys.hoverPreviewEnabled)
@@ -53,7 +56,7 @@ public final class AppSettings: ObservableObject {
         }
         
         let storedAutoHide = defaults.double(forKey: Keys.autoHideDelay)
-        self.autoHideDelay = storedAutoHide > 0 ? storedAutoHide : 2.5
+        self.autoHideDelay = storedAutoHide.isFinite && storedAutoHide > 0 && storedAutoHide <= 3600 ? storedAutoHide : 2.5
     }
     
     public func resetToDefaults() {

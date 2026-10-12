@@ -13,6 +13,9 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Run unit and integration tests
+        run: swift test --disable-xctest
+
       - name: Build NovaPlayer in Release mode
         run: |
           chmod +x scripts/build_app.sh

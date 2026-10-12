@@ -10,7 +10,7 @@ public final class AudioVoiceoverEngine: NSObject, ObservableObject, AVSpeechSyn
     private var baseVolume: Float = 1.0
     private var lastSpokenText: String = ""
     
-    @Published public var isVoiceoverEnabled: Bool = false
+    @Published public var isVoiceoverEnabled: Bool = false { didSet { if !isVoiceoverEnabled { stop() } } }
     @Published public var duckingFactor: Float = 0.20
     
     public override init() {
@@ -90,7 +90,8 @@ public final class AudioVoiceoverEngine: NSObject, ObservableObject, AVSpeechSyn
         case "pt": return "pt-BR"
         case "ja": return "ja-JP"
         case "zh": return "zh-CN"
-        default: return "en-US"
+        case "en", "original": return "en-US"
+        default: return lang.replacingOccurrences(of: "_", with: "-")
         }
     }
 }

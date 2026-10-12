@@ -25,6 +25,7 @@ public struct TrackSelectionPopover: View {
         }
         .buttonStyle(.plain)
         .help("Subtitles & Audio Tracks")
+        .accessibilityIdentifier("tracks")
         .popover(isPresented: $vm.isShowingPopover, arrowEdge: .top) {
             VStack(alignment: .leading, spacing: 14) {
                 // Header
@@ -95,6 +96,15 @@ public struct TrackSelectionPopover: View {
                         }
                     }
                     
+                    Picker("Source language", selection: Binding(
+                        get: { subtitleManager.sourceLanguage },
+                        set: { subtitleManager.setSourceLanguage($0) }
+                    )) {
+                        Text("English").tag("en")
+                        Text("Italian (Italiano)").tag("it")
+                    }
+                    .pickerStyle(.menu)
+
                     Picker("Translate To", selection: Binding(
                         get: { subtitleManager.targetLanguage },
                         set: { subtitleManager.setTargetLanguage($0) }
@@ -105,13 +115,34 @@ public struct TrackSelectionPopover: View {
                     }
                     .pickerStyle(.menu)
                     
-                    Text("Translates subtitles on the fly without heavy AI models.")
+                    Toggle("Allow online fallback", isOn: Binding(
+                        get: { subtitleManager.allowsOnlineFallback },
+                        set: { subtitleManager.setAllowsOnlineFallback($0) }
+                    ))
+                    .font(.caption)
+
+                    #if compiler(>=6.2)
+                    if #available(macOS 26, *),
+                       ["en", "it"].contains(subtitleManager.targetLanguage),
+                       subtitleManager.sourceLanguage != subtitleManager.targetLanguage {
+                        OfflineTranslationSetupView(source: subtitleManager.sourceLanguage,
+                                                    target: subtitleManager.targetLanguage,
+                                                    onPrepared: { subtitleManager.retryTranslation() })
+                            .id(subtitleManager.sourceLanguage + subtitleManager.targetLanguage)
+                    }
+                    #endif
+
+                    Text("Italian ↔ English uses installed resources on macOS 26+. Online fallback sends subtitle text to MyMemory; turn it off to keep text on this Mac.")
                         .font(.caption2)
                         .foregroundColor(.secondary)
                 }
                 
                 Divider()
                 
+                if let error = subtitleManager.translationError {
+                    Text(error).font(.caption).foregroundColor(.secondary)
+                }
+
                 // Audio Track Selection
                 VStack(alignment: .leading, spacing: 6) {
                     Text("Audio Language Track")

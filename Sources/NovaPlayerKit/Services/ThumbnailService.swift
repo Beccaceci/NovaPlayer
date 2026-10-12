@@ -8,7 +8,7 @@ public final class ThumbnailService {
     private var imageGenerator: AVAssetImageGenerator?
     private let cache = NSCache<NSNumber, NSImage>()
     private var activeAssetURL: URL?
-    private var pendingRequestTime: Double?
+    private var generation = UUID()
     
     public init() {
         cache.countLimit = 300 // Holds ~300 preview frames in memory
@@ -16,6 +16,7 @@ public final class ThumbnailService {
     
     public func setAsset(url: URL) {
         guard url != activeAssetURL else { return }
+        reset()
         activeAssetURL = url
         cache.removeAllObjects()
         
@@ -30,6 +31,7 @@ public final class ThumbnailService {
     }
     
     public func requestThumbnail(at seconds: Double, completion: @escaping (NSImage?) -> Void) {
+        guard seconds.isFinite, seconds >= 0, seconds < Double(Int.max) else { completion(nil); return }
         let roundedKey = NSNumber(value: Int(seconds.rounded()))
         
         // 1. Instant Cache Hit
@@ -43,29 +45,32 @@ public final class ThumbnailService {
             return
         }
         
-        pendingRequestTime = seconds
-        let targetTime = seconds
+        let requestGeneration = generation
         let cmTime = CMTime(seconds: seconds, preferredTimescale: 600)
         
         // 2. Asynchronous generation without blocking the main thread
         generator.generateCGImagesAsynchronously(forTimes: [NSValue(time: cmTime)]) { [weak self] _, cgImage, _, result, _ in
-            guard let self = self else { return }
-            
-            if result == .succeeded, let cgImage = cgImage {
-                let nsImage = NSImage(cgImage: cgImage, size: NSSize(width: cgImage.width, height: cgImage.height))
-                self.cache.setObject(nsImage, forKey: roundedKey)
-                
-                DispatchQueue.main.async {
-                    completion(nsImage)
-                }
-            } else if result == .failed {
-                DispatchQueue.main.async {
+            DispatchQueue.main.async {
+                guard let self, self.generation == requestGeneration else { completion(nil); return }
+                if result == .succeeded, let cgImage {
+                    let image = NSImage(cgImage: cgImage, size: NSSize(width: cgImage.width, height: cgImage.height))
+                    self.cache.setObject(image, forKey: roundedKey)
+                    completion(image)
+                } else {
                     completion(nil)
                 }
             }
         }
     }
     
+    public func reset() {
+        generation = UUID()
+        imageGenerator?.cancelAllCGImageGeneration()
+        imageGenerator = nil
+        activeAssetURL = nil
+        cache.removeAllObjects()
+    }
+
     public func cancel() {
         imageGenerator?.cancelAllCGImageGeneration()
     }

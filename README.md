@@ -197,3 +197,15 @@ NovaPlayer/
 ## 📄 License
 
 NovaPlayer is released under the **[MIT License](LICENSE)**. Contributions, bug reports, and feature requests are warmly welcomed!
+
+## Development, audit and tests
+
+Build tooling requires Swift 6+. The native app supports macOS 14+; the Foundation-only `NovaPlayerCore` can be built and tested separately on other Swift platforms.
+
+Run `scripts/test.sh` for unit and integration tests, or `scripts/test.sh --enable-code-coverage` for coverage. Run `scripts/test_ui.sh` with full Xcode and XcodeGen for end-to-end UI tests.
+
+- [Test setup and verification limits](docs/TESTING.md)
+- [Code audit and remaining findings](docs/AUDIT.md)
+- [Subtitle, audio-language and cross-platform roadmap](docs/LANGUAGES_AND_PLATFORMS.md)
+
+Italian ↔ English translation prefers installed Apple language resources on macOS 26+ (build with Xcode 26 / Swift 6.2+). Use **Prepare offline translation** in the subtitle menu for the initial language download. Online fallback to MyMemory is enabled by default and can be disabled. Select the actual source language before translating. Embedded-track translation and synchronized generated dubbing are not implemented. Available language choices do not guarantee that a corresponding audio track or system speech voice exists.

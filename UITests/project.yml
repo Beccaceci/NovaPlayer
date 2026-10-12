@@ -1,0 +1,47 @@
+name: NovaPlayerUI
+options:
+  deploymentTarget:
+    macOS: '14.0'
+packages:
+  NovaPlayer:
+    path: ..
+settings:
+  base:
+    SWIFT_VERSION: '5.0'
+    CODE_SIGNING_ALLOWED: NO
+targets:
+  NovaPlayerUI:
+    type: application
+    platform: macOS
+    sources:
+      - ../Sources/NovaPlayer
+    dependencies:
+      - package: NovaPlayer
+        product: NovaPlayerKit
+    settings:
+      base:
+        OTHER_SWIFT_FLAGS: "$(inherited) -parse-as-library"
+        PRODUCT_BUNDLE_IDENTIFIER: dev.novaplayer.ui-tests.app
+        GENERATE_INFOPLIST_FILE: YES
+  NovaPlayerUITests:
+    type: bundle.ui-testing
+    platform: macOS
+    sources:
+      - NovaPlayerUITests.swift
+      - path: ../Tests/NovaPlayerTests/Fixtures
+        type: folder
+        buildPhase: resources
+    dependencies:
+      - target: NovaPlayerUI
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: dev.novaplayer.ui-tests
+        GENERATE_INFOPLIST_FILE: YES
+schemes:
+  NovaPlayerUI:
+    build:
+      targets:
+        NovaPlayerUI: all
+    test:
+      targets:
+        - NovaPlayerUITests

@@ -3,3 +3,6 @@
 build/
 *.mp4
 *.srt
+!Tests/NovaPlayerTests/Fixtures/*.mp4
+!Tests/NovaPlayerTests/Fixtures/*.srt
+UITests/*.xcodeproj/

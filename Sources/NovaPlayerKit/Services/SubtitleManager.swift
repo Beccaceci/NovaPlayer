@@ -1,3 +1,4 @@
+import NovaPlayerCore
 import Foundation
 import AVFoundation
 import AppKit
@@ -24,6 +25,8 @@ public final class SubtitleManager: ObservableObject {
     @Published public var availableAudioTracks: [MediaTrackOption] = []
     @Published public var selectedAudioTrackId: String = "default"
     
+    @Published public private(set) var sourceLanguage = "en"
+    @Published public private(set) var allowsOnlineFallback = true
     @Published public var targetLanguage: String = "original"
     @Published public var isTranslating: Bool = false
     
@@ -44,7 +47,41 @@ public final class SubtitleManager: ObservableObject {
     private weak var player: AVPlayer?
     private var currentAsset: AVAsset?
     
-    public init() {}
+    private let translator: SubtitleTranslating
+    private let voiceover: AudioVoiceoverEngine
+    private var translationTasks: [String: Task<Void, Never>] = [:]
+    private var attemptedTranslations = Set<String>()
+    private var generation = UUID()
+    private var activeCueID: Int?
+    @Published public private(set) var translationError: String?
+
+    public init(translator: SubtitleTranslating = OfflineFirstTranslator(), voiceover: AudioVoiceoverEngine = .shared) {
+        self.translator = translator
+        self.voiceover = voiceover
+    }
+
+    private func invalidateTranslations() {
+        generation = UUID()
+        translationTasks.values.forEach { $0.cancel() }
+        translationTasks.removeAll()
+        attemptedTranslations.removeAll()
+        translatedCuesCache.removeAll()
+        activeCueID = nil
+        isTranslating = false
+        translationError = nil
+        activeSubtitleText = nil
+    }
+
+    public func reset() {
+        invalidateTranslations()
+        externalCues = []
+        currentAsset = nil
+        availableSubtitleTracks = []
+        availableAudioTracks = []
+        selectedSubtitleTrackId = "off"
+        selectedAudioTrackId = "default"
+        voiceover.stop()
+    }
     
     public func attach(player: AVPlayer) {
         self.player = player
@@ -53,6 +90,7 @@ public final class SubtitleManager: ObservableObject {
     // MARK: - Video Asset Update
     
     public func didLoadAsset(_ asset: AVAsset, videoURL: URL) {
+        reset()
         self.currentAsset = asset
         self.externalCues = []
         self.translatedCuesCache = [:]
@@ -71,7 +109,7 @@ public final class SubtitleManager: ObservableObject {
                     name = "Audio Track \(idx + 1) (Stereo)"
                 }
                 let code = option.locale?.language.languageCode?.identifier ?? option.extendedLanguageTag
-                options.append(MediaTrackOption(id: option.displayName, displayName: name, languageCode: code, isEmbedded: true))
+                options.append(MediaTrackOption(id: "audio_\(idx)", displayName: name, languageCode: code, isEmbedded: true))
             }
         }
         
@@ -94,7 +132,7 @@ public final class SubtitleManager: ObservableObject {
                     name = "Subtitle Track \(idx + 1)"
                 }
                 let code = option.locale?.language.languageCode?.identifier ?? option.extendedLanguageTag
-                tracks.append(MediaTrackOption(id: "embedded_\(name)", displayName: name, languageCode: code, isEmbedded: true))
+                tracks.append(MediaTrackOption(id: "embedded_\(idx)", displayName: name, languageCode: code, isEmbedded: true))
             }
         }
         
@@ -104,9 +142,9 @@ public final class SubtitleManager: ObservableObject {
         
         let fileManager = FileManager.default
         if let files = try? fileManager.contentsOfDirectory(atPath: videoDir.path) {
-            for file in files {
+            for file in files.sorted() {
                 let ext = (file as NSString).pathExtension.lowercased()
-                if (ext == "srt" || ext == "vtt") && file.hasPrefix(baseName) {
+                if (ext == "srt" || ext == "vtt") && (file == "\(baseName).\(ext)" || file.hasPrefix(baseName + ".")) {
                     let subURL = videoDir.appendingPathComponent(file)
                     tracks.append(MediaTrackOption(id: "file_\(subURL.path)", displayName: file, languageCode: nil, isEmbedded: false))
                 }
@@ -130,8 +168,8 @@ public final class SubtitleManager: ObservableObject {
               let group = asset.mediaSelectionGroup(forMediaCharacteristic: .audible),
               let playerItem = player?.currentItem else { return }
         
-        for option in group.options {
-            if option.displayName == id {
+        for (idx, option) in group.options.enumerated() {
+            if "audio_\(idx)" == id {
                 playerItem.select(option, in: group)
                 self.selectedAudioTrackId = id
                 return
@@ -140,10 +178,14 @@ public final class SubtitleManager: ObservableObject {
     }
     
     public func selectSubtitleTrack(id: String) {
+        guard id == "off" || availableSubtitleTracks.contains(where: { $0.id == id }) else { return }
+        invalidateTranslations()
+        self.externalCues = []
         self.selectedSubtitleTrackId = id
         self.activeSubtitleText = nil
-        AudioVoiceoverEngine.shared.stop()
+        voiceover.stop()
         
+        if id == "off" { externalCues = [] }
         guard let asset = currentAsset,
               let playerItem = player?.currentItem else { return }
         
@@ -156,10 +198,10 @@ public final class SubtitleManager: ObservableObject {
         }
         
         if id.hasPrefix("embedded_") {
-            let trackName = String(id.dropFirst("embedded_".count))
+            let trackIndex = Int(id.dropFirst("embedded_".count))
             if let group = asset.mediaSelectionGroup(forMediaCharacteristic: .legible) {
-                for option in group.options {
-                    if option.displayName == trackName {
+                for (idx, option) in group.options.enumerated() {
+                    if idx == trackIndex {
                         playerItem.select(option, in: group)
                         self.externalCues = []
                         return
@@ -180,9 +222,13 @@ public final class SubtitleManager: ObservableObject {
         guard let content = (try? String(contentsOf: url, encoding: .utf8)) ?? (try? String(contentsOf: url, encoding: .isoLatin1)) else {
             return
         }
+        invalidateTranslations()
+        if let group = currentAsset?.mediaSelectionGroup(forMediaCharacteristic: .legible) {
+            player?.currentItem?.select(nil, in: group)
+        }
         self.externalCues = SRTParser.parse(content: content)
         self.translatedCuesCache.removeAll()
-        AudioVoiceoverEngine.shared.stop()
+        voiceover.stop()
         
         // Register in tracks if not present
         let trackId = "file_\(url.path)"
@@ -196,16 +242,19 @@ public final class SubtitleManager: ObservableObject {
     
     public func updateTime(_ currentTime: Double) {
         guard selectedSubtitleTrackId != "off", !externalCues.isEmpty else {
+            activeSubtitleText = nil
+            activeCueID = nil
             return
         }
         
         // Find matching cue for current timestamp
-        if let match = externalCues.first(where: { $0.startTime <= currentTime && currentTime <= $0.endTime }) {
+        if let match = externalCues.first(where: { $0.startTime <= currentTime && currentTime < $0.endTime }) {
+            activeCueID = match.id
             if targetLanguage == "original" {
                 if self.activeSubtitleText != match.text {
                     self.activeSubtitleText = match.text
-                    if AudioVoiceoverEngine.shared.isVoiceoverEnabled {
-                        AudioVoiceoverEngine.shared.speakCue(text: match.text, languageCode: "en")
+                    if voiceover.isVoiceoverEnabled {
+                        voiceover.speakCue(text: match.text, languageCode: sourceLanguage)
                     }
                 }
             } else {
@@ -213,8 +262,8 @@ public final class SubtitleManager: ObservableObject {
                 if let cached = translatedCuesCache[cacheKey] {
                     if self.activeSubtitleText != cached {
                         self.activeSubtitleText = cached
-                        if AudioVoiceoverEngine.shared.isVoiceoverEnabled {
-                            AudioVoiceoverEngine.shared.speakCue(text: cached, languageCode: targetLanguage)
+                        if voiceover.isVoiceoverEnabled {
+                            voiceover.speakCue(text: cached, languageCode: targetLanguage)
                         }
                     }
                 } else {
@@ -223,53 +272,59 @@ public final class SubtitleManager: ObservableObject {
                 }
             }
         } else {
+            activeCueID = nil
             self.activeSubtitleText = nil
         }
     }
     
     // MARK: - Subtitle Translation (Fast API with Memory Caching)
     
+    public func setSourceLanguage(_ language: String) {
+        guard ["en", "it"].contains(language) else { return }
+        invalidateTranslations()
+        sourceLanguage = language
+        voiceover.stop()
+    }
+
+    public func setAllowsOnlineFallback(_ allowed: Bool) {
+        invalidateTranslations()
+        allowsOnlineFallback = allowed
+    }
+
+    public func retryTranslation() { invalidateTranslations() }
+
     public func setTargetLanguage(_ lang: String) {
+        invalidateTranslations()
         self.targetLanguage = lang
         self.activeSubtitleText = nil
-        AudioVoiceoverEngine.shared.stop()
+        voiceover.stop()
     }
     
     private func translateCue(_ cue: SubtitleCue, to lang: String) {
-        let textToTranslate = cue.text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !textToTranslate.isEmpty else { return }
-        
         let cacheKey = "\(cue.id)_\(lang)"
-        guard translatedCuesCache[cacheKey] == nil else { return }
-        
-        // Encode URL for MyMemory lightweight free translation endpoint
-        guard let encodedText = textToTranslate.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
-              let url = URL(string: "https://api.mymemory.translated.net/get?q=\(encodedText)&langpair=autodetect|\(lang)") else {
-            return
-        }
-        
-        Task {
+        guard attemptedTranslations.insert(cacheKey).inserted else { return }
+        let requestGeneration = generation
+        let source = sourceLanguage
+        let allowOnline = allowsOnlineFallback
+        isTranslating = true
+        translationTasks[cacheKey] = Task { @MainActor [weak self, translator] in
             do {
-                let (data, response) = try await URLSession.shared.data(from: url)
-                guard let http = response as? HTTPURLResponse, http.statusCode == 200 else { return }
-                
-                if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-                   let responseData = json["responseData"] as? [String: Any],
-                   let translatedText = responseData["translatedText"] as? String,
-                   !translatedText.isEmpty {
-                    
-                    await MainActor.run {
-                        self.translatedCuesCache[cacheKey] = translatedText
-                        if let current = self.activeSubtitleText, current == cue.text {
-                            self.activeSubtitleText = translatedText
-                            if AudioVoiceoverEngine.shared.isVoiceoverEnabled {
-                                AudioVoiceoverEngine.shared.speakCue(text: translatedText, languageCode: self.targetLanguage)
-                            }
-                        }
+                let translated = try await translator.translate(cue.text, from: source, to: lang, allowOnline: allowOnline)
+                guard let self, self.generation == requestGeneration, !Task.isCancelled else { return }
+                self.translatedCuesCache[cacheKey] = translated
+                if self.activeCueID == cue.id && self.targetLanguage == lang {
+                    self.activeSubtitleText = translated
+                    if self.voiceover.isVoiceoverEnabled {
+                        self.voiceover.speakCue(text: translated, languageCode: lang)
                     }
                 }
+                self.translationTasks.removeValue(forKey: cacheKey)
+                self.isTranslating = !self.translationTasks.isEmpty
             } catch {
-                // Silently fallback to original text on network absence
+                guard let self, self.generation == requestGeneration else { return }
+                self.translationError = "Translation unavailable. Showing original subtitles."
+                self.translationTasks.removeValue(forKey: cacheKey)
+                self.isTranslating = !self.translationTasks.isEmpty
             }
         }
     }

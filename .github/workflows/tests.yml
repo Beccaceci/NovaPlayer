@@ -1,0 +1,26 @@
+name: Tests
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  macos:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - run: swift test --disable-xctest --enable-code-coverage
+      - run: swift build -c release --product NovaPlayer
+      - run: brew install xcodegen
+      - run: scripts/test_ui.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ui-test-results
+          path: build/UIResults-*.xcresult
+  portable-core:
+    runs-on: ubuntu-latest
+    container: swift:6.0
+    steps:
+      - uses: actions/checkout@v4
+      - run: swift test --disable-xctest

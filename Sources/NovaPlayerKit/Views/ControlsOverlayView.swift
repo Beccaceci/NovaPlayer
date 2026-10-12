@@ -123,6 +123,7 @@ public struct ControlsOverlayView: View {
                 }
                 .buttonStyle(.plain)
                 .help("Close Video and Return to Home")
+                .accessibilityIdentifier("closeVideo")
             }
             
             // Video Title
@@ -199,6 +200,9 @@ public struct ControlsOverlayView: View {
                 }
                 .buttonStyle(.plain)
                 
+                .accessibilityIdentifier("playPause")
+                .accessibilityLabel(state.isPlaying ? "Pause" : "Play")
+
                 // Skip Backward
                 Button(action: { engine.skipBackward() }) {
                     HStack(spacing: 1) {
@@ -234,6 +238,8 @@ public struct ControlsOverlayView: View {
                     }
                     .buttonStyle(.plain)
                     .help("Mute / Unmute (M)")
+                    .accessibilityIdentifier("mute")
+                    .accessibilityLabel(state.isMuted ? "Unmute" : "Mute")
                     
                     Slider(
                         value: Binding(
@@ -262,7 +268,7 @@ public struct ControlsOverlayView: View {
                 Spacer()
                 
                 // Audio & Subtitles Menu
-                TrackSelectionPopover(subtitleManager: SubtitleManager.shared, onOpenSubtitleFile: onOpenSubtitleFile)
+                TrackSelectionPopover(subtitleManager: engine.subtitles, onOpenSubtitleFile: onOpenSubtitleFile)
                 
                 // Speed Controller (0.05 granularity)
                 SpeedControlPopover(state: state, engine: engine, settings: settings)
